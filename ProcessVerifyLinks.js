@@ -13,7 +13,7 @@ $(document).ready(function() {
 		],
 		order: [
 			[3, 'desc'],
-			[4, 'asc'],
+			[4, 'desc'],
 		], // Sort by Alert column, then by Code column
 		pageLength: limit,
 		buttons: [
