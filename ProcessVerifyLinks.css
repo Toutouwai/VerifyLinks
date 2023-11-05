@@ -40,3 +40,7 @@
   #vl-datatable .vl-checked {
     width: 1%;
     white-space: nowrap; }
+  #vl-datatable td.vl-alert {
+    color: #d00000; }
+
+/*# sourceMappingURL=ProcessVerifyLinks.css.map */

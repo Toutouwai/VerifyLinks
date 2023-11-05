@@ -10,6 +10,15 @@ class VerifyLinks extends WireData implements Module, ConfigurableModule {
 		$this->lazycron_frequency = 'everyHour';
 		$this->links_per_cron = 5;
 		$this->timeout = 30;
+		$this->user_agents = <<<EOT
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
+Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
+Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
+Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15
+Mozilla/5.0 (Macintosh; Intel Mac OS X 13_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15
+EOT;
 	}
 
 	/**
@@ -17,10 +26,20 @@ class VerifyLinks extends WireData implements Module, ConfigurableModule {
 	 */
 	public function ready() {
 		if($this->lazycron_frequency) {
-			$this->addHookAfter("LazyCron::{$this->lazycron_frequency}", $this, 'verifyLinks');
+			$this->addHookAfter("LazyCron::{$this->lazycron_frequency}", $this, 'verifyLinksCron');
 		}
 		$this->pages->addHookAfter('savePageOrFieldReady', $this, 'afterSaveReady');
 		$this->pages->addHookBefore('delete', $this, 'beforeDelete');
+	}
+
+	/**
+	 * Verify links on LazyCron
+	 *
+	 * @param HookEvent $event
+	 */
+	public function verifyLinksCron(HookEvent $event) {
+		if(!$this->links_per_cron) return;
+		$this->verifyLinks($this->links_per_cron);
 	}
 
 	/**
@@ -28,24 +47,28 @@ class VerifyLinks extends WireData implements Module, ConfigurableModule {
 	 *
 	 * @param HookEvent $event
 	 */
-	public function verifyLinks(HookEvent $event) {
-		if(!$this->links_per_cron) return;
+	public function verifyLinks($num_links) {
+		if(!$num_links) $num_links = $this->links_per_cron;
 		$database = $this->wire()->database;
-		$sql = "SELECT url FROM verify_links ORDER BY checked LIMIT $this->links_per_cron";
+		$sql = "SELECT url FROM verify_links ORDER BY checked LIMIT $num_links";
 		$query = $database->prepare($sql);
 		$query->execute();
 		$urls = $query->fetchAll(\PDO::FETCH_COLUMN);
 		if(!$urls) return;
+		$agents = explode("\n", str_replace("\r", "", $this->user_agents));
 
 		$results = [];
 		$multi = curl_multi_init();
 		$handles = [];
 		foreach($urls as $i => $url) {
+			$rand_key = array_rand($agents);
+			$agent = $agents[$rand_key];
 			$handles[$i] = curl_init($url);
 			curl_setopt($handles[$i], CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($handles[$i], CURLOPT_SSL_VERIFYPEER, false);
 			curl_setopt($handles[$i], CURLOPT_NOBODY, true);
 			curl_setopt($handles[$i], CURLOPT_TIMEOUT, $this->timeout);
+			curl_setopt($handles[$i], CURLOPT_USERAGENT, $agent);
 			curl_multi_add_handle($multi, $handles[$i]);
 		}
 		do {
@@ -162,6 +185,7 @@ EOT;
 					if(!$this->allowField($field, $page)) break;
 					$url = $page->$fieldname;
 					if(!$url || !$this->isValidLink($url)) break;
+					$url = $this->normaliseUrl($url);
 					$links[$url] = $url;
 					break;
 
@@ -189,6 +213,7 @@ EOT;
 						foreach($url_columns as $name) {
 							$url = $row->$name;
 							if(!$url || !$this->isValidLink($url)) continue;
+							$url = $this->normaliseUrl($url);
 							$links[$url] = $url;
 						}
 						foreach($html_columns as $name) {
@@ -205,6 +230,7 @@ EOT;
 					if(!$this->allowField($field, $page)) break;
 					foreach($page->$fieldname as $url) {
 						if(!$url || !$this->isValidLink($url)) continue;
+						$url = $this->normaliseUrl($url);
 						$links[$url] = $url;
 					}
 					break;
@@ -224,6 +250,7 @@ EOT;
 					foreach($url_subfields as $name) {
 						$url = $page->$fieldname->$name;
 						if(!$url || !$this->isValidLink($url)) continue;
+						$url = $this->normaliseUrl($url);
 						$links[$url] = $url;
 					}
 					foreach($html_subfields as $name) {
@@ -266,9 +293,31 @@ EOT;
 		$valid = true;
 		// URL must start with "http"
 		if(substr($url, 0, 4) !== 'http') $valid = false;
+		// URL must contain '://'
+		if($valid && strpos($url, '://') === false) $valid = false;
 		// URL must be external
 		if($valid && strpos($url, $this->wire()->config->urls->httpRoot) === 0) $valid = false;
 		return $valid;
+	}
+
+	/**
+	 * Normalise the URL insofar as needed in this module
+	 *
+	 * @param string $url
+	 * @return string
+	 */
+	protected function normaliseUrl($url) {
+		// Add trailing slash at the end of TLD if missing
+		// This is needed because cURL will otherwise add the slash and cause a DB matching problem
+		if(substr_count($url, '/') < 3) {
+			$position = strpos($url, '?');
+			if($position !== false) {
+				$url = substr_replace($url, '/', $position, 0);
+			} else {
+				$url .= '/';
+			}
+		}
+		return $url;
 	}
 
 	/**
@@ -287,6 +336,7 @@ EOT;
 		foreach($hrefs as $href) {
 			$url = $href->getAttribute('href');
 			if(!$url || !$this->isValidLink($url)) continue;
+			$url = $this->normaliseUrl($url);
 			$links[$url] = $url;
 		}
 		return $links;
@@ -373,6 +423,16 @@ EOT;
 		$f->label = $this->_('Timeout for each link verification (seconds)');
 		$f->inputType = 'number';
 		$f->min = 0;
+		$f->value = $this->$f_name;
+		$inputfields->add($f);
+
+		/** @var InputfieldTextarea $f */
+		$f = $modules->get('InputfieldTextarea');
+		$f_name = 'user_agents';
+		$f->name = $f_name;
+		$f->label = $this->_('List of user agents');
+		$f->description = $this->_('One of these will be selected at random when links are checked, which lowers the chance that the request will be blocked.');
+		$f->collapsed = Inputfield::collapsedYes;
 		$f->value = $this->$f_name;
 		$inputfields->add($f);
 	}

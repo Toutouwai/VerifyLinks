@@ -16,7 +16,9 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		// Labels
 		$this->labels = [
 			'page' => $this->_('Page'),
+			'view' => $this->_('View'),
 			'link' => $this->_('Link URL'),
+			'alert' => $this->_('Alert'),
 			'response' => $this->_('Code'),
 			'redirect' => $this->_('Redirect'),
 			'checked' => $this->_('Last checked'),
@@ -32,6 +34,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$info = $this->wire()->modules->getModuleInfo($this->className);
 		$version = $info['version'];
 		$admin_url = $config->urls->admin;
+		$root = rtrim($config->urls->httpRoot, '/');
 
 		// JS config data
 		$config->js($this->className, ['table_limit' => $this->table_limit]);
@@ -62,7 +65,9 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		// Table header
 		$out .= '<thead><tr>';
 		$out .= "<th class='vl-page'>{$this->labels['page']}</th>";
+		$out .= "<th class='vl-view'>{$this->labels['view']}</th>";
 		$out .= "<th class='vl-link'>{$this->labels['link']}</th>";
+		$out .= "<th class='vl-alert'>{$this->labels['alert']}</th>";
 		$out .= "<th class='vl-response'>{$this->labels['response']}</th>";
 		$out .= "<th class='vl-redirect'>{$this->labels['redirect']}</th>";
 		$out .= "<th class='vl-checked'>{$this->labels['checked']}</th>";
@@ -74,11 +79,14 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		foreach($data as $item) {
 			$title = $titles[$item['pages_id']]['title'] ?? $titles[$item['pages_id']]['name'] ?? $item['pages_id'];
 			$path = $titles[$item['pages_id']]['path'] ?? '';
-			$response = (int) $item['response'];
+			$response = $item['response'];
 			$response_class = 'default';
+			$alert = '';
 			switch(true) {
+				case $response == 0:
 				case $response >= 400:
 					$response_class = 'error';
+					$alert = '<i class="fa fa-warning"></i>';
 					break;
 				case $response >= 300:
 					$response_class = 'redirect';
@@ -87,11 +95,14 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 					$response_class = 'okay';
 					break;
 			}
+			$edit_link = "{$admin_url}page/edit/?id={$item['pages_id']}";
 			$redirect = '';
 			if($item['redirect']) $redirect = "<a href='{$item['redirect']}'>{$item['redirect']}</a>";
 			$out .= "<tr class='row-$response_class'>";
-			$out .= "<td class='vl-page'><a href='{$admin_url}page/edit/?id={$item['pages_id']}' title='$path'>$title</a></td>";
+			$out .= "<td class='vl-page'><a href='$edit_link' title='$path'>$title</a></td>";
+			$out .= "<td class='vl-view'><a href='$root$path'>{$this->labels['view']}</a></td>";
 			$out .= "<td class='vl-link'><a href='{$item['url']}'>{$item['url']}</a></td>";
+			$out .= "<td class='vl-alert'>$alert</td>";
 			$out .= "<td class='vl-response'>{$item['response']}</td>";
 			$out .= "<td class='vl-redirect'>$redirect</td>";
 			$relative_time = wireRelativeTimeStr($item['checked']);

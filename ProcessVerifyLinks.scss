@@ -21,4 +21,7 @@
 		a { color:#354b60; word-break:break-word; }
 	}
 	.vl-checked { width:1%; white-space:nowrap; }
+	td {
+		&.vl-alert { color:#d00000; }
+	}
 }

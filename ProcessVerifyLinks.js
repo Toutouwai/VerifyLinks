@@ -7,11 +7,14 @@ $(document).ready(function() {
 		dom: '<"top-controls-wrap"Bf>r<"table-wrap"t><"bottom-controls-wrap"lip>',
 		columnDefs: [
 			{
-				targets: [3], // Hide redirect column by default
+				targets: [1, 5], // Hide View and Redirect columns by default
 				visible: false,
 			},
 		],
-		order: [[2, 'desc']], // Sort by code column
+		order: [
+			[3, 'desc'],
+			[4, 'asc'],
+		], // Sort by Alert column, then by Code column
 		pageLength: limit,
 		buttons: [
 			'colvis',
