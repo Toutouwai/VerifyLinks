@@ -83,7 +83,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 			$response_class = 'default';
 			$alert = '';
 			switch(true) {
-				case $response == 0:
+				case $response === '0':
 				case $response >= 400:
 					$response_class = 'error';
 					$alert = '<i class="fa fa-warning"></i>';

@@ -8,7 +8,7 @@ class VerifyLinks extends WireData implements Module, ConfigurableModule {
 	public function __construct() {
 		parent::__construct();
 		$this->lazycron_frequency = 'everyHour';
-		$this->links_per_cron = 5;
+		$this->links_per_cron = 10;
 		$this->timeout = 30;
 		$this->user_agents = <<<EOT
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
@@ -69,6 +69,8 @@ EOT;
 			curl_setopt($handles[$i], CURLOPT_NOBODY, true);
 			curl_setopt($handles[$i], CURLOPT_TIMEOUT, $this->timeout);
 			curl_setopt($handles[$i], CURLOPT_USERAGENT, $agent);
+			// Needed for LinkedIn: https://stackoverflow.com/a/39021392
+			curl_setopt($handles[$i], CURLOPT_ENCODING, "gzip, deflate, sdch, br");
 			curl_multi_add_handle($multi, $handles[$i]);
 		}
 		do {
