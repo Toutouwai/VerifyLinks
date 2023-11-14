@@ -7,10 +7,10 @@ class VerifyLinks extends WireData implements Module, ConfigurableModule {
 	 */
 	public function __construct() {
 		parent::__construct();
-		$this->lazycron_frequency = 'everyHour';
-		$this->links_per_cron = 10;
+		$this->lazycronFrequency = 'everyHour';
+		$this->linksPerCron = 10;
 		$this->timeout = 30;
-		$this->user_agents = <<<EOT
+		$this->userAgents = <<<EOT
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36
 Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36
@@ -25,8 +25,8 @@ EOT;
 	 * Ready
 	 */
 	public function ready() {
-		if($this->lazycron_frequency) {
-			$this->addHookAfter("LazyCron::{$this->lazycron_frequency}", $this, 'verifyLinksCron');
+		if($this->lazycronFrequency) {
+			$this->addHookAfter("LazyCron::{$this->lazycronFrequency}", $this, 'verifyLinksCron');
 		}
 		$this->pages->addHookAfter('savePageOrFieldReady', $this, 'afterSaveReady');
 		$this->pages->addHookBefore('delete', $this, 'beforeDelete');
@@ -38,8 +38,8 @@ EOT;
 	 * @param HookEvent $event
 	 */
 	public function verifyLinksCron(HookEvent $event) {
-		if(!$this->links_per_cron) return;
-		$this->verifyLinks($this->links_per_cron);
+		if(!$this->linksPerCron) return;
+		$this->verifyLinks($this->linksPerCron);
 	}
 
 	/**
@@ -48,14 +48,14 @@ EOT;
 	 * @param HookEvent $event
 	 */
 	public function verifyLinks($num_links) {
-		if(!$num_links) $num_links = $this->links_per_cron;
+		if(!$num_links) $num_links = $this->linksPerCron;
 		$database = $this->wire()->database;
 		$sql = "SELECT url FROM verify_links ORDER BY checked LIMIT $num_links";
 		$query = $database->prepare($sql);
 		$query->execute();
 		$urls = $query->fetchAll(\PDO::FETCH_COLUMN);
 		if(!$urls) return;
-		$agents = explode("\n", str_replace("\r", "", $this->user_agents));
+		$agents = explode("\n", str_replace("\r", "", $this->userAgents));
 
 		$results = [];
 		$multi = curl_multi_init();
@@ -124,9 +124,10 @@ EOT;
 	protected function afterSaveReady(HookEvent $event) {
 		/** @var Page $page */
 		$page = $event->arguments(0);
-		// Return early for Repeater pages because these are handled by the root container page
-		if($page instanceof RepeaterPage) return;
 		$database = $this->wire()->database;
+
+		// Return if Repeater page because these are handled by the root container page
+		if($page instanceof RepeaterPage) return;
 
 		// Add/remove links in database
 		$links = $this->extractLinksFromPage($page);
@@ -179,12 +180,15 @@ EOT;
 	 */
 	public function extractLinksFromPage($page, $links = []) {
 		foreach($page->fields as $field) {
+
+			// Skip if
+			if(!$this->allowForField($field, $page)) continue;
+
 			$fieldname = $field->name;
 			switch(true) {
 
 				// URL fields
 				case ($field->type == 'FieldtypeURL'):
-					if(!$this->allowField($field, $page)) break;
 					$url = $page->$fieldname;
 					if(!$url || !$this->isValidLink($url)) break;
 					$url = $this->normaliseUrl($url);
@@ -193,7 +197,6 @@ EOT;
 
 				// HTML fields
 				case ($field->type == 'FieldtypeTextarea' && $field->contentType === 1):
-					if(!$this->allowField($field, $page)) break;
 					$html = $page->$fieldname;
 					if(!$html) break;
 					$links = array_merge($links, $this->extractHtmlLinks($html));
@@ -210,7 +213,6 @@ EOT;
 						if($column['type'] === 'textareaMCE') $html_columns[] = $column['name'];
 					}
 					if(!$url_columns && ! $html_columns) break;
-					if(!$this->allowField($field, $page)) break;
 					foreach($page->$fieldname as $row) {
 						foreach($url_columns as $name) {
 							$url = $row->$name;
@@ -229,7 +231,6 @@ EOT;
 				// ProFields Multiplier fields
 				case ($field->type == 'FieldtypeMultiplier'):
 					if($field->fieldtypeClass !== 'FieldtypeURL') break;
-					if(!$this->allowField($field, $page)) break;
 					foreach($page->$fieldname as $url) {
 						if(!$url || !$this->isValidLink($url)) continue;
 						$url = $this->normaliseUrl($url);
@@ -248,7 +249,6 @@ EOT;
 						if($subfield->type === 'TinyMCE') $html_subfields[] = $subfield->name;
 					}
 					if(!$url_subfields && ! $html_subfields) break;
-					if(!$this->allowField($field, $page)) break;
 					foreach($url_subfields as $name) {
 						$url = $page->$fieldname->$name;
 						if(!$url || !$this->isValidLink($url)) continue;
@@ -281,7 +281,7 @@ EOT;
 	 * @param Page $page
 	 * @return bool
 	 */
-	public function ___allowField($field, $page) {
+	public function ___allowForField($field, $page) {
 		return true;
 	}
 
@@ -391,7 +391,7 @@ EOT;
 
 		/** @var InputfieldSelect $f */
 		$f = $modules->get('InputfieldSelect');
-		$f_name = 'lazycron_frequency';
+		$f_name = 'lazycronFrequency';
 		$f->name = $f_name;
 		$f->label = $this->_('LazyCron frequency');
 		$f->addOption('', $this->_('Never'));
@@ -410,7 +410,7 @@ EOT;
 
 		/** @var InputfieldInteger $f */
 		$f = $modules->get('InputfieldInteger');
-		$f_name = 'links_per_cron';
+		$f_name = 'linksPerCron';
 		$f->name = $f_name;
 		$f->label = $this->_('Number of links to verify during each LazyCron execution');
 		$f->inputType = 'number';
@@ -430,7 +430,7 @@ EOT;
 
 		/** @var InputfieldTextarea $f */
 		$f = $modules->get('InputfieldTextarea');
-		$f_name = 'user_agents';
+		$f_name = 'userAgents';
 		$f->name = $f_name;
 		$f->label = $this->_('List of user agents');
 		$f->description = $this->_('One of these will be selected at random when links are checked, which lowers the chance that the request will be blocked.');

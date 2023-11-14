@@ -12,7 +12,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 	 */
 	public function __construct() {
 		parent::__construct();
-		$this->table_limit = 25;
+		$this->tableLimit = 25;
 		// Labels
 		$this->labels = [
 			'page' => $this->_('Page'),
@@ -37,7 +37,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$root = rtrim($config->urls->httpRoot, '/');
 
 		// JS config data
-		$config->js($this->className, ['table_limit' => $this->table_limit]);
+		$config->js($this->className, ['tableLimit' => $this->tableLimit]);
 
 		// Load Verify Links data from database
 		$sql = "SELECT * FROM verify_links ORDER BY response DESC";
@@ -126,7 +126,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 	public function getModuleConfigInputfields($inputfields) {
 		/** @var InputfieldInteger $f */
 		$f = $this->wire()->modules->get('InputfieldInteger');
-		$f_name = 'table_limit';
+		$f_name = 'tableLimit';
 		$f->name = $f_name;
 		$f->label = $this->_('Default number of entries per pagination of table');
 		$f->inputType = 'number';
