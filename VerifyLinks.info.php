@@ -8,6 +8,6 @@ $info = array(
 	'href' => 'https://github.com/Toutouwai/VerifyLinks',
 	'icon' => 'link',
 	'autoload' => true,
-	'requires' => 'ProcessWire>=3.0.216, PHP>=7.0.0, LazyCron',
+	'requires' => 'ProcessWire>=3.0.236, PHP>=7.0.0, LazyCron',
 	'installs' => 'ProcessVerifyLinks',
 );
