@@ -3,12 +3,37 @@
 class VerifyLinks extends WireData implements Module, ConfigurableModule {
 
 	/**
+	 * Hookable time functions from LazyCron
+	 */
+	protected $timeFuncs = array(
+		30 => 'every30Seconds',
+		60 => 'everyMinute',
+		120 => 'every2Minutes',
+		180 => 'every3Minutes',
+		240 => 'every4Minutes',
+		300 => 'every5Minutes',
+		600 => 'every10Minutes',
+		900 => 'every15Minutes',
+		1800 => 'every30Minutes',
+		2700 => 'every45Minutes',
+		3600 => 'everyHour',
+		7200 => 'every2Hours',
+		14400 => 'every4Hours',
+		21600 => 'every6Hours',
+		43200 => 'every12Hours',
+		86400 => 'everyDay',
+		172800 => 'every2Days',
+		345600 => 'every4Days',
+		604800 => 'everyWeek',
+		1209600 => 'every2Weeks',
+		2419200 => 'every4Weeks',
+	);
+
+	/**
 	 * Construct
 	 */
 	public function __construct() {
 		parent::__construct();
-		$this->linkCount = 0;
-		$this->checkAllFrequency = 3;
 		$this->lazyCronFrequency = 'everyHour';
 		$this->linksPerCron = 10;
 		$this->timeout = 30;
@@ -147,7 +172,6 @@ EOT;
 			$values = rtrim($values, ', ');
 			$sql = "INSERT INTO verify_links (pages_id, url) VALUES $values";
 			$database->exec($sql);
-			$this->setLazyCronFrequency();
 		}
 		if($remove) {
 			$urls = '';
@@ -155,7 +179,6 @@ EOT;
 			$urls = rtrim($urls, ', ');
 			$sql = "DELETE FROM verify_links WHERE url IN ($urls)";
 			$database->exec($sql);
-			$this->setLazyCronFrequency();
 		}
 	}
 
@@ -171,7 +194,6 @@ EOT;
 		if($page instanceof RepeaterPage) return;
 		$sql = "DELETE FROM verify_links WHERE pages_id = $page->id";
 		$this->wire()->database->exec($sql);
-		$this->setLazyCronFrequency();
 	}
 
 	/**
@@ -348,35 +370,6 @@ EOT;
 	}
 
 	/**
-	 * Set the frequency at which LazyCron will execute
-	 */
-	protected function setLazyCronFrequency() {
-		$modules = $this->wire()->modules;
-
-		// Get link count
-		$sql = "SELECT COUNT(*) FROM verify_links";
-		$query = $this->wire()->database->prepare($sql);
-		$query->execute();
-		$results = $query->fetchAll(\PDO::FETCH_COLUMN);
-		$link_count = (int) reset($results);
-
-		// Get LazyCron time function name
-		/** @var LazyCron $lc */
-		$lc = $this->wire()->modules->get('LazyCron');
-		$links_per_cron = $this->linksPerCron ?: 10;
-		$check_all_frequency = $this->checkAllFrequency ?: 3;
-		$lc_executions = (int) ceil($link_count / $links_per_cron);
-		$seconds = (int) floor(($check_all_frequency * 86400) / $lc_executions);
-		$time_function = $lc->getTimeFuncName($seconds);
-
-		// Set config data
-		$config_data = $modules->getConfig($this);
-		$config_data['lazyCronFrequency'] = $time_function;
-		$config_data['linkCount'] = $link_count;
-		$modules->saveConfig($this, $config_data);
-	}
-
-	/**
 	 * Install
 	 */
 	public function ___install() {
@@ -390,7 +383,7 @@ CREATE TABLE verify_links (
 	url text,
 	response int UNSIGNED,
 	redirect text,
-	checked TIMESTAMP,
+	checked TIMESTAMP DEFAULT 0,
 	PRIMARY KEY (id),
 	INDEX url (url ($len)),
 	INDEX checked (checked)
@@ -422,21 +415,46 @@ EOT;
 		$modules = $this->wire()->modules;
 		$links_per_cron = $this->linksPerCron ?: 10;
 
-		/** @var InputfieldInteger $f */
-		$f = $modules->get('InputfieldInteger');
-		$f_name = 'checkAllFrequency';
-		$f->name = $f_name;
-		$f->label = $this->_('Number of days you want all links to be checked within');
-		$f->description = $this->_('The number you set here works in combination with the number of detected links and the number of links to verify per LazyCron execution to determine the LazyCron frequency.');
-		if($this->linkCount) {
-			$f->notes = sprintf($this->_('%s links have been detected and with %s links verified per LazyCron execution the resulting LazyCron frequency is %s.'), "**$this->linkCount**", "**$links_per_cron**", "**$this->lazyCronFrequency**");
+		// Get link count
+		$sql = "SELECT COUNT(*) FROM verify_links";
+		$query = $this->wire()->database->prepare($sql);
+		$query->execute();
+		$results = $query->fetchAll(\PDO::FETCH_COLUMN);
+		$link_count = (int) reset($results);
+
+		/** @var InputfieldFieldset $fs */
+		$fs = $modules->get('InputfieldFieldset');
+		$fs->label = $this->_('Link verification rate');
+		if($link_count) {
+			$executions = (int) ceil($link_count / $links_per_cron);
+			$times = array_flip($this->timeFuncs);
+			$seconds = $executions * $times[$this->lazyCronFrequency];
+			$timestring = $this->wire()->datetime->elapsedTimeStr(0, $seconds);
+			$fs->description = sprintf($this->_('%s %s %s been detected and with the settings below all links will be verified every %s approximately.'), "**$link_count**", $this->_n('link', 'links', $link_count),  $this->_n('has', 'have', $link_count),  "**$timestring**");
 		} else {
-			$f->notes = sprintf($this->_('%s links have been detected.'), "**$this->linkCount**");
+			$fs->description = $this->_('No links have been detected yet.');
 		}
-		$f->inputType = 'number';
-		$f->min = 1;
-		$f->value = $this->$f_name ?: 3;
-		$inputfields->add($f);
+		$inputfields->add($fs);
+
+		/** @var InputfieldSelect $f */
+		$f = $modules->get('InputfieldSelect');
+		$f_name = 'lazyCronFrequency';
+		$f->name = $f_name;
+		$f->label = $this->_('LazyCron frequency');
+		$f->addOption('', $this->_('Never'));
+		$f->addOption('every30Seconds', $this->_('Every 30 seconds'));
+		$f->addOption('everyMinute', $this->_('Every minute'));
+		$f->addOption('every2Minutes', $this->_('Every 2 minutes'));
+		$f->addOption('every5Minutes', $this->_('Every 5 minutes'));
+		$f->addOption('every10Minutes', $this->_('Every 10 minutes'));
+		$f->addOption('every30Minutes', $this->_('Every 30 minutes'));
+		$f->addOption('everyHour', $this->_('Every hour'));
+		$f->addOption('every6Hours', $this->_('Every 6 hours'));
+		$f->addOption('every12Hours', $this->_('Every 12 hours'));
+		$f->addOption('everyDay', $this->_('Every day'));
+		$f->value = $this->$f_name;
+		$f->columnWidth = 50;
+		$fs->add($f);
 
 		/** @var InputfieldInteger $f */
 		$f = $modules->get('InputfieldInteger');
@@ -446,7 +464,8 @@ EOT;
 		$f->inputType = 'number';
 		$f->min = 1;
 		$f->value = $links_per_cron;
-		$inputfields->add($f);
+		$f->columnWidth = 50;
+		$fs->add($f);
 
 		/** @var InputfieldInteger $f */
 		$f = $modules->get('InputfieldInteger');
