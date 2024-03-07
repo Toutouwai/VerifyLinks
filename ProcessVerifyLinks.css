@@ -33,7 +33,7 @@
     #vl-datatable tr.row-okay {
       background-color: #ecffe6; }
   #vl-datatable .vl-page {
-    min-width: 160px; }
+    min-width: 180px; }
   #vl-datatable .vl-link a, #vl-datatable .vl-redirect a {
     color: #354b60;
     word-break: break-word; }

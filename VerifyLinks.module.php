@@ -177,7 +177,7 @@ EOT;
 			$urls = '';
 			foreach($remove as $url) $urls .= "'$url', ";
 			$urls = rtrim($urls, ', ');
-			$sql = "DELETE FROM verify_links WHERE url IN ($urls)";
+			$sql = "DELETE FROM verify_links WHERE url IN ($urls) AND pages_id = $page_id";
 			$database->exec($sql);
 		}
 	}
@@ -212,9 +212,10 @@ EOT;
 			$fieldname = $field->name;
 			switch(true) {
 
-				// URL fields
-				case ($field->type == 'FieldtypeURL'):
-					$url = $page->$fieldname;
+				// URL fields, including FieldtypeVerifiedURL
+				case ($field->type instanceof FieldtypeURL):
+					// Cast to string in case value is VerifiedURL object
+					$url = (string) $page->$fieldname;
 					if(!$url || !$this->isValidLink($url)) break;
 					$url = $this->normaliseUrl($url);
 					$links[$url] = $url;
@@ -293,14 +294,13 @@ EOT;
 						$links = $this->extractLinksFromPage($p, $links);
 					}
 					break;
-
 			}
 		}
 		return $links;
 	}
 
 	/**
-	 * Allow URLs to be extracted from this field?
+	 * Allow link URLs to be extracted from this field on this page?
 	 *
 	 * @param Field $field
 	 * @param Page $page
@@ -348,7 +348,7 @@ EOT;
 	}
 
 	/**
-	 * Extract external links from the supplied HTML string
+	 * Extract an array of external link URLs from the supplied HTML string
 	 *
 	 * @param string $html
 	 * @return array
