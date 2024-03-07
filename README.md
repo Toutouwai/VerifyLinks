@@ -44,6 +44,8 @@ The table rows are colour-coded according to the response code:
 
 Where you see a 403 response code it's recommended to manually verify the link by clicking the URL to see if the page loads or not before treating it as a broken link. That's because some servers have anti-scraping firewalls that issue a 403 Forbidden response to requests from IP ranges that correspond to datacentres rather than to individual ISP customers and this will cause a "false positive" as a broken link.
 
+For each link the "Page" column contains a link to edit the page and the "View" column contains a link to view the page on the front-end.
+
 You can use the "Column visibility" dropdown to include a "Redirect" column in the table, which shows the redirect URL where this is available.
 
 ![verify-links-2](https://github.com/Toutouwai/VerifyLinks/assets/1538852/dc45a270-0e71-4c38-8c02-dff9d43dd56c)
