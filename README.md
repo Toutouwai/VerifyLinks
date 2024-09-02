@@ -2,6 +2,10 @@
 
 Periodically verifies that external links are working and not leading to an error page.
 
+Requires the following core modules to be installed:
+* PagePaths
+* LazyCron
+
 ## How it works
 
 The module identifies links on a page when the page is saved and stores the URLs in a database table. For the purposes of this module a "link" is an external URL in any of the following...
