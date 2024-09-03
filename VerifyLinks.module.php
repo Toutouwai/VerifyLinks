@@ -206,7 +206,7 @@ EOT;
 	public function extractLinksFromPage($page, $links = []) {
 		foreach($page->fields as $field) {
 
-			// Skip if
+			// Skip if this field is not allowed for this page
 			if(!$this->allowForField($field, $page)) continue;
 
 			$fieldname = $field->name;
@@ -214,18 +214,12 @@ EOT;
 
 				// URL fields, including FieldtypeVerifiedURL
 				case ($field->type instanceof FieldtypeURL):
-					// Cast to string in case value is VerifiedURL object
-					$url = (string) $page->$fieldname;
-					if(!$url || !$this->isValidLink($url)) break;
-					$url = $this->normaliseUrl($url);
-					$links[$url] = $url;
+					$links = $this->processUrlValue($page->$fieldname, $links);
 					break;
 
 				// HTML fields
-				case ($field->type == 'FieldtypeTextarea' && $field->contentType === 1):
-					$html = $page->$fieldname;
-					if(!$html) break;
-					$links = array_merge($links, $this->extractHtmlLinks($html));
+				case ($field->type instanceof FieldtypeTextarea && $field->contentType === 1):
+					$links = $this->processHtmlValue($page->$fieldname, $links);
 					break;
 
 				// ProFields Table fields
@@ -234,22 +228,25 @@ EOT;
 					$url_columns = [];
 					$html_columns = [];
 					foreach($columns as $column) {
-						if($column['type'] === 'url') $url_columns[] = $column['name'];
-						if($column['type'] === 'textareaCKE') $html_columns[] = $column['name'];
-						if($column['type'] === 'textareaMCE') $html_columns[] = $column['name'];
+						switch($column['type']) {
+							case 'url':
+								$url_columns[] = $column['name'];
+								break;
+							case 'textareaCKE':
+							case 'textareaCKELanguage':
+							case 'textareaMCE':
+							case 'textareaMCELanguage':
+								$html_columns[] = $column['name'];
+								break;
+						}
 					}
 					if(!$url_columns && ! $html_columns) break;
 					foreach($page->$fieldname as $row) {
 						foreach($url_columns as $name) {
-							$url = $row->$name;
-							if(!$url || !$this->isValidLink($url)) continue;
-							$url = $this->normaliseUrl($url);
-							$links[$url] = $url;
+							$links = $this->processUrlValue($row->$name, $links);
 						}
 						foreach($html_columns as $name) {
-							$html = $row->$name;
-							if(!$html) continue;
-							$links = array_merge($links, $this->extractHtmlLinks($html));
+							$links = $this->processHtmlValue($row->$name, $links);
 						}
 					}
 					break;
@@ -257,10 +254,8 @@ EOT;
 				// ProFields Multiplier fields
 				case ($field->type == 'FieldtypeMultiplier'):
 					if($field->fieldtypeClass !== 'FieldtypeURL') break;
-					foreach($page->$fieldname as $url) {
-						if(!$url || !$this->isValidLink($url)) continue;
-						$url = $this->normaliseUrl($url);
-						$links[$url] = $url;
+					foreach($page->$fieldname as $value) {
+						$links = $this->processUrlValue($value, $links);
 					}
 					break;
 
@@ -270,21 +265,25 @@ EOT;
 					$url_subfields = [];
 					$html_subfields = [];
 					foreach($subfields as $subfield) {
-						if($subfield->type === 'URL') $url_subfields[] = $subfield->name;
-						if($subfield->type === 'CKEditor') $html_subfields[] = $subfield->name;
-						if($subfield->type === 'TinyMCE') $html_subfields[] = $subfield->name;
+						switch($subfield->type) {
+							case 'URL':
+							case 'URL_Language':
+								$url_subfields[] = $subfield->name;
+								break;
+							case 'CKEditor':
+							case 'CKEditor_Language':
+							case 'TinyMCE':
+							case 'TinyMCE_Language':
+								$html_subfields[] = $subfield->name;
+								break;
+						}
 					}
 					if(!$url_subfields && ! $html_subfields) break;
 					foreach($url_subfields as $name) {
-						$url = $page->$fieldname->$name;
-						if(!$url || !$this->isValidLink($url)) continue;
-						$url = $this->normaliseUrl($url);
-						$links[$url] = $url;
+						$links = $this->processUrlValue($page->$fieldname->$name, $links);
 					}
 					foreach($html_subfields as $name) {
-						$html = $page->$fieldname->$name;
-						if(!$html) continue;
-						$links = array_merge($links, $this->extractHtmlLinks($html));
+						$links = $this->processHtmlValue($page->$fieldname->$name, $links);
 					}
 					break;
 
@@ -308,6 +307,50 @@ EOT;
 	 */
 	public function ___allowForField($field, $page) {
 		return true;
+	}
+
+	/**
+	 * Process a value from a URL field
+	 *
+	 * @param string|LanguagesPageFieldValue $value
+	 * @param array $links
+	 * @return array
+	 */
+	protected function processUrlValue($value, $links) {
+		if($value instanceof LanguagesPageFieldValue || $value instanceof ComboLanguagesValue) {
+			foreach($value as $url) {
+				if(!$url || !$this->isValidLink($url)) break;
+				$url = $this->normaliseUrl($url);
+				$links[$url] = $url;
+			}
+		} else {
+			// Cast to string in case value is VerifiedURL object
+			$url = (string) $value;
+			if(!$url || !$this->isValidLink($url)) return $links;
+			$url = $this->normaliseUrl($url);
+			$links[$url] = $url;
+		}
+		return $links;
+	}
+
+	/**
+	 * Process a value from an HTML field
+	 *
+	 * @param string|LanguagesPageFieldValue $value
+	 * @param array $links
+	 * @return array
+	 */
+	protected function processHtmlValue($value, $links) {
+		if(!$value) return $links;
+		if($value instanceof LanguagesPageFieldValue || $value instanceof ComboLanguagesValue) {
+			foreach($value as $html) {
+				if(!$html) continue;
+				$links = array_merge($links, $this->extractHtmlLinks($html));
+			}
+		} else {
+			$links = array_merge($links, $this->extractHtmlLinks($value));
+		}
+		return $links;
 	}
 
 	/**

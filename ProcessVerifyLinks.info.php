@@ -3,7 +3,7 @@
 $info = array(
 	'title' => 'Verify Links: Process module',
 	'summary' => 'Process module for Verify Links',
-	'version' => '0.1.5',
+	'version' => '0.2.0',
 	'author' => 'Robin Sallis',
 	'href' => 'https://github.com/Toutouwai/VerifyLinks',
 	'icon' => 'link',
