@@ -54,8 +54,8 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$titles = $this->wire()->pages->findRaw("id=$ids, include=all", ['title', 'name', 'path']);
 
 		// Load DataTables
-		$config->scripts->add($config->urls->$this . "datatables/datatables.min.js?v=$version");
-		$config->styles->add($config->urls->$this . "datatables/datatables.min.css?v=$version");
+		$config->scripts->add($config->urls->$this . "DataTables/datatables.min.js?v=$version");
+		$config->styles->add($config->urls->$this . "DataTables/datatables.min.css?v=$version");
 
 		// Results table
 		$out = '';
