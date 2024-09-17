@@ -41,9 +41,9 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 
 		// Load Verify Links data from database
 		$sql = "SELECT * FROM verify_links ORDER BY response DESC";
-		$query = $database->prepare($sql);
-		$query->execute();
-		$data = $query->fetchAll(\PDO::FETCH_ASSOC);
+		$stmt = $database->prepare($sql);
+		$stmt->execute();
+		$data = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
 		// Get unique page IDs
 		$page_ids = array_column($data, 'pages_id');

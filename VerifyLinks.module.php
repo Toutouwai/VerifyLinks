@@ -78,9 +78,11 @@ EOT;
 		if(!$num_links) $num_links = $this->linksPerCron;
 		$database = $this->wire()->database;
 		$sql = "SELECT url FROM verify_links ORDER BY checked LIMIT $num_links";
-		$query = $database->prepare($sql);
-		$query->execute();
-		$urls = $query->fetchAll(\PDO::FETCH_COLUMN);
+		$stmt = $database->prepare($sql);
+		$stmt->execute();
+		$urls = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+		// Close DB connection to avoid "MySQL server has gone away" error
+		$database->close();
 		if(!$urls) return;
 		$agents = explode("\n", str_replace("\r", "", $this->userAgents));
 
@@ -118,29 +120,16 @@ EOT;
 		curl_multi_close($multi);
 
 		if(!$results) return;
-		$responses = [];
-		$redirects = [];
-		$urls = '';
+
+		// Update verify_links table
 		foreach($results as $url => $data) {
-			$urls .= "'$url', ";
-			$responses[] = "WHEN url = '$url' THEN {$data['response']}";
-			$redirects[] = "WHEN url = '$url' THEN '{$data['redirect']}'";
+			$sql = "UPDATE verify_links SET response=:response, redirect=:redirect, checked=NOW() WHERE url=:url";
+			$stmt = $database->prepare($sql);
+			$stmt->bindValue(":response", $data['response'], \PDO::PARAM_INT);
+			$stmt->bindValue(":redirect", $data['redirect']);
+			$stmt->bindValue(":url", $url);
+			$stmt->execute();
 		}
-		$responses_str = implode("\n", $responses);
-		$redirects_str = implode("\n", $redirects);
-		$urls = rtrim($urls, ', ');
-		$sql = <<<EOT
-UPDATE verify_links
-SET response = (CASE
-$responses_str
-END),
-redirect = (CASE
-$redirects_str
-END),
-checked = NOW()
-WHERE url IN ($urls);
-EOT;
-		$database->exec($sql);
 	}
 
 	/**
@@ -160,25 +149,35 @@ EOT;
 		$links = $this->extractLinksFromPage($page);
 		$page_id = $page->id;
 		$sql = "SELECT url FROM verify_links WHERE pages_id=:pages_id";
-		$query = $database->prepare($sql);
-		$query->bindValue(":pages_id", $page_id, \PDO::PARAM_INT);
-		$query->execute();
-		$existing_links = $query->fetchAll(\PDO::FETCH_COLUMN);
+		$stmt = $database->prepare($sql);
+		$stmt->bindValue(":pages_id", $page_id, \PDO::PARAM_INT);
+		$stmt->execute();
+		$existing_links = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 		$add = array_diff($links, $existing_links);
 		$remove = array_diff($existing_links, $links);
 		if($add) {
-			$values = '';
-			foreach($add as $url) $values .= "($page_id, '$url'), ";
-			$values = rtrim($values, ', ');
-			$sql = "INSERT INTO verify_links (pages_id, url) VALUES $values";
-			$database->exec($sql);
+			$placeholders = [];
+			$values = [];
+			foreach($add as $url) {
+				$placeholders[] = '(?, ?)';
+				$values[] = $page_id;
+				$values[] = $url;
+			}
+			$placeholders = implode(', ', $placeholders);
+			$stmt = $database->prepare("INSERT INTO verify_links (pages_id, url) VALUES $placeholders");
+			$stmt->execute($values);
 		}
 		if($remove) {
-			$urls = '';
-			foreach($remove as $url) $urls .= "'$url', ";
-			$urls = rtrim($urls, ', ');
-			$sql = "DELETE FROM verify_links WHERE url IN ($urls) AND pages_id = $page_id";
-			$database->exec($sql);
+			$placeholders = [];
+			$values = [];
+			foreach($remove as $url) {
+				$placeholders[] = '?';
+				$values[] = $url;
+			}
+			$placeholders = implode(', ', $placeholders);
+			$values[] = $page_id;
+			$stmt = $database->prepare("DELETE FROM verify_links WHERE url IN ($placeholders) AND pages_id=?");
+			$stmt->execute($values);
 		}
 	}
 
@@ -460,10 +459,17 @@ EOT;
 
 		// Get link count
 		$sql = "SELECT COUNT(*) FROM verify_links";
-		$query = $this->wire()->database->prepare($sql);
-		$query->execute();
-		$results = $query->fetchAll(\PDO::FETCH_COLUMN);
+		$stmt = $this->wire()->database->prepare($sql);
+		$stmt->execute();
+		$results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
 		$link_count = (int) reset($results);
+
+		// Get unverified link count
+		$sql = "SELECT COUNT(*) FROM verify_links WHERE response IS NULL";
+		$stmt = $this->wire()->database->prepare($sql);
+		$stmt->execute();
+		$results = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+		$unverified_link_count = (int) reset($results);
 
 		/** @var InputfieldFieldset $fs */
 		$fs = $modules->get('InputfieldFieldset');
@@ -474,6 +480,9 @@ EOT;
 			$seconds = $executions * $times[$this->lazyCronFrequency];
 			$timestring = $this->wire()->datetime->elapsedTimeStr(0, $seconds);
 			$fs->description = sprintf($this->_('%s %s %s been detected and with the settings below all links will be verified every %s approximately.'), "**$link_count**", $this->_n('link', 'links', $link_count),  $this->_n('has', 'have', $link_count),  "**$timestring**");
+			if($unverified_link_count) {
+				$fs->description .= "\n" . sprintf($this->_('%s %s %s not yet been verified.'), "**$unverified_link_count**", $this->_n('link', 'links', $unverified_link_count),  $this->_n('has', 'have', $unverified_link_count),  "**$timestring**");
+			}
 		} else {
 			$fs->description = $this->_('No links have been detected yet.');
 		}

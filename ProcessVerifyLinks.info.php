@@ -3,11 +3,11 @@
 $info = array(
 	'title' => 'Verify Links: Process module',
 	'summary' => 'Process module for Verify Links',
-	'version' => '0.2.1',
+	'version' => '0.2.2',
 	'author' => 'Robin Sallis',
 	'href' => 'https://github.com/Toutouwai/VerifyLinks',
 	'icon' => 'link',
-	'requires' => 'ProcessWire>=3.0.216, PHP>=7.0.0, VerifyLinks',
+	'requires' => 'ProcessWire>=3.0.216, PHP>=7.4.0, VerifyLinks',
 	'page' => array(
 		'name' => 'verify-links',
 		'title' => 'Verify Links',
