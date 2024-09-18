@@ -17,4 +17,5 @@ $info = array(
 	'permissions' => array(
 		'verify-links' => 'Use the Verify Links module'
 	),
+	'useNavJSON' => true,
 );

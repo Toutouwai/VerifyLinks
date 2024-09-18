@@ -26,6 +26,23 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 	}
 
 	/**
+	 * Flyout menu
+	 *
+	 * @param array $options
+	 * @return string
+	 */
+	public function ___executeNavJSON($options = []) {
+		$options['add'] = false;
+		$options['edit'] = '?type=error';
+		$options['itemLabel'] = 'label';
+		$options['items'][] = [
+			'id' => 0,
+			'label' => $this->_('Error responses only'),
+		];
+		return parent::___executeNavJSON($options);
+	}
+
+	/**
 	 * Execute
 	 */
 	public function ___execute() {
@@ -35,27 +52,48 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$version = $info['version'];
 		$admin_url = $config->urls->admin;
 		$root = rtrim($config->urls->httpRoot, '/');
+		$type = $this->wire()->input->get('type');
+
+		if($type === 'error') {
+			$this->headline($this->wire()->page->title . ': ' . $this->_('Error responses only'));
+			$sql = "SELECT * FROM verify_links WHERE response>=400 OR response=0 ORDER BY response DESC";
+		} else {
+			$sql = "SELECT * FROM verify_links ORDER BY response DESC";
+		}
 
 		// JS config data
 		$config->js($this->className, ['tableLimit' => $this->tableLimit]);
 
 		// Load Verify Links data from database
-		$sql = "SELECT * FROM verify_links ORDER BY response DESC";
 		$stmt = $database->prepare($sql);
 		$stmt->execute();
 		$data = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 
+		// Exclude any error URLs that match the defined prefixes
+		if($type === 'error' && $this->excludeUrls) {
+			$prefixes = explode("\n", str_replace("\r", "", $this->excludeUrls));
+			foreach($prefixes as $prefix) {
+				$prefix = trim($prefix);
+				$length = strlen($prefix);
+				foreach($data as $key => $value) {
+					if(substr($value['url'], 0, $length) === $prefix) {
+						unset($data[$key]);
+					}
+				}
+			}
+		}
+
 		// Get unique page IDs
 		$page_ids = array_column($data, 'pages_id');
 		$page_ids = array_flip(array_flip($page_ids));
-		
+
 		// Get page titles
 		$ids = implode('|', $page_ids);
 		$titles = $this->wire()->pages->findRaw("id=$ids, include=all", ['title', 'name', 'path']);
 
 		// Load DataTables
-		$config->scripts->add($config->urls->$this . "DataTables/datatables.min.js?v=$version");
-		$config->styles->add($config->urls->$this . "DataTables/datatables.min.css?v=$version");
+		$config->scripts->add($config->urls->$this . "datatables/datatables.min.js?v=$version");
+		$config->styles->add($config->urls->$this . "datatables/datatables.min.css?v=$version");
 
 		// Results table
 		$out = '';
@@ -83,7 +121,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 			$response_class = 'default';
 			$alert = '';
 			switch(true) {
-				case $response === '0':
+				case $response === 0 || $response === '0':
 				case $response >= 400:
 					$response_class = 'error';
 					$alert = '<i class="fa fa-warning"></i>';
@@ -99,9 +137,9 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 			$redirect = '';
 			if($item['redirect']) $redirect = "<a href='{$item['redirect']}'>{$item['redirect']}</a>";
 			$out .= "<tr class='row-$response_class'>";
-			$out .= "<td class='vl-page'><a href='$edit_link' title='$path'>$title</a></td>";
-			$out .= "<td class='vl-view'><a href='$root$path'>{$this->labels['view']}</a></td>";
-			$out .= "<td class='vl-link'><a href='{$item['url']}'>{$item['url']}</a></td>";
+			$out .= "<td class='vl-page'><a href='$edit_link' title='$path' target='_blank'>$title</a></td>";
+			$out .= "<td class='vl-view'><a href='$root$path' target='_blank'>{$this->labels['view']}</a></td>";
+			$out .= "<td class='vl-link'><a href='{$item['url']}' target='_blank'>{$item['url']}</a></td>";
 			$out .= "<td class='vl-alert'>$alert</td>";
 			$out .= "<td class='vl-response'>{$item['response']}</td>";
 			$out .= "<td class='vl-redirect'>$redirect</td>";
@@ -115,7 +153,7 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$out .= '</div>';
 
 		return $out;
-		
+
 	}
 
 	/**
@@ -124,8 +162,10 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 	 * @param InputfieldWrapper $inputfields
 	 */
 	public function getModuleConfigInputfields($inputfields) {
+		$modules = $this->wire()->modules;
+
 		/** @var InputfieldInteger $f */
-		$f = $this->wire()->modules->get('InputfieldInteger');
+		$f = $modules->get('InputfieldInteger');
 		$f_name = 'tableLimit';
 		$f->name = $f_name;
 		$f->label = $this->_('Default number of entries per pagination of table');
@@ -133,6 +173,26 @@ class ProcessVerifyLinks extends Process implements ConfigurableModule {
 		$f->min = 1;
 		$f->required = true;
 		$f->value = $this->$f_name;
+		$inputfields->add($f);
+
+		/** @var InputfieldTextarea $f */
+		$f = $modules->get('InputfieldTextarea');
+		$f_name = 'excludeUrls';
+		$f->name = $f_name;
+		$f->label = $this->_('Error responses only: exclude URLs starting with');
+		$f->description = $this->_('One URL prefix per line.');
+		$f->notes = $this->_('This field can be used to exclude domains that are known to give inaccurate error responses. The exclusion only applies to the "Error responses only" listing; the main listing will still show all links.');
+		$f->value = $this->$f_name;
+		$f->rows = 3;
+		$f->collapsed = Inputfield::collapsedBlank;
+		$inputfields->add($f);
+
+		/** @var InputfieldMarkup $f */
+		$f = $modules->get('InputfieldMarkup');
+		$f->label = $this->_('Related module');
+		$link = $this->wire()->config->urls->admin . 'module/edit?name=VerifyLinks&collapse_info=1';
+		$link_label = $this->_('Configure Verify Links: main module');
+		$f->value = "<a href='$link'>$link_label</a>";
 		$inputfields->add($f);
 	}
 

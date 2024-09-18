@@ -25,19 +25,23 @@ The link URLs stored in the database table are then checked in batches via LazyC
 
 ## Configuration
 
-![verify-links-3](https://github.com/Toutouwai/VerifyLinks/assets/1538852/1d5dbae5-6755-4bcd-89a0-a931f0705864)
+![vl-2](https://github.com/user-attachments/assets/86cc260f-8179-4d74-82ff-5eae0c23b48b)
 
-On the module config screen you can define settings that determine the link verification rate. You can choose the frequency that the LazyCron task will execute and the number of links that are verified with each LazyCron execution. The description line in this section informs you approximately how often all links in the site will be verified based on the number of links currently detected and the settings you have chosen.
+On the main module config screen you can define settings that determine the link verification rate. You can choose the frequency that the LazyCron task will execute and the number of links that are verified with each LazyCron execution. The description line in this section informs you approximately how often all links in the site will be verified based on the number of links currently detected and the settings you have chosen.
 
 The module verifies links using `curl_multi_exec` which is pretty fast in most cases so if your site has a lot of links you can experiment with increasing the number of links to verify during each LazyCron execution.
 
 You can also set the timeout for each link verification and customise the list of user agents if needed.
 
+![vl-3](https://github.com/user-attachments/assets/11917ecf-1ca7-4e50-adb4-b7e8fc44187d)
+
+In the Process module config there's a field allowing you to exclude URLs that start with a given string. This only applies to the "Error responses only" listing, and can be useful to avoid seeing false-positive error statuses for domains that you know provide inaccurate responses (more about this below).
+
 ## Usage
 
 Visit Setup > Verify Links to view a paginated table showing the status of the links that have been identified in your site.
 
-![verify-links-1](https://github.com/Toutouwai/VerifyLinks/assets/1538852/90d7191b-2f67-400e-ace7-270b37cb2fbc)
+![verify-links-1](https://github.com/user-attachments/assets/d383bf1b-200f-4efa-8efd-63f551581a2c)
 
 The table rows are colour-coded according to the response code:
 
@@ -51,6 +55,10 @@ Where you see a 403 response code it's recommended to manually verify the link b
 For each link the "Page" column contains a link to edit the page and the "View" column contains a link to view the page on the front-end.
 
 You can use the "Column visibility" dropdown to include a "Redirect" column in the table, which shows the redirect URL where this is available.
+
+You can use the "Custom Search Builder" to filter the table by particular column values, e.g. for a particular response code.
+
+To see only links that have an error response code (400 or higher, or 0), use the flyout menu to visit Setup > Verify Links > Error responses only.
 
 ![verify-links-2](https://github.com/Toutouwai/VerifyLinks/assets/1538852/dc45a270-0e71-4c38-8c02-dff9d43dd56c)
 

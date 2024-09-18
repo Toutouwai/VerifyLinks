@@ -72,15 +72,21 @@ EOT;
 	/**
 	 * Verify links
 	 *
-	 * @param HookEvent $event
+	 * @param int $num_links
+	 * @param int $response_code
 	 */
-	public function verifyLinks($num_links) {
+	public function verifyLinks($num_links, $response_code = null) {
 		if(!$num_links) $num_links = $this->linksPerCron;
 		$database = $this->wire()->database;
-		$sql = "SELECT url FROM verify_links ORDER BY checked LIMIT $num_links";
+		if($response_code !== null) {
+			$sql = "SELECT DISTINCT url, response FROM verify_links WHERE response=:response_code ORDER BY checked LIMIT $num_links";
+		} else {
+			$sql = "SELECT DISTINCT url, response FROM verify_links ORDER BY checked LIMIT $num_links";
+		}
 		$stmt = $database->prepare($sql);
+		if($response_code !== null) $stmt->bindValue(":response_code", $response_code, \PDO::PARAM_INT);
 		$stmt->execute();
-		$urls = $stmt->fetchAll(\PDO::FETCH_COLUMN);
+		$urls = $stmt->fetchAll(\PDO::FETCH_ASSOC);
 		// Close DB connection to avoid "MySQL server has gone away" error
 		$database->close();
 		if(!$urls) return;
@@ -89,13 +95,14 @@ EOT;
 		$results = [];
 		$multi = curl_multi_init();
 		$handles = [];
-		foreach($urls as $i => $url) {
+		foreach($urls as $i => $item) {
 			$rand_key = array_rand($agents);
 			$agent = $agents[$rand_key];
-			$handles[$i] = curl_init($url);
+			$handles[$i] = curl_init($item['url']);
 			curl_setopt($handles[$i], CURLOPT_RETURNTRANSFER, true);
 			curl_setopt($handles[$i], CURLOPT_SSL_VERIFYPEER, false);
-			curl_setopt($handles[$i], CURLOPT_NOBODY, true);
+			// Only use NOBODY if previous response was not 405
+			if($item['response'] != 405) curl_setopt($handles[$i], CURLOPT_NOBODY, true);
 			curl_setopt($handles[$i], CURLOPT_TIMEOUT, $this->timeout);
 			curl_setopt($handles[$i], CURLOPT_USERAGENT, $agent);
 			// Needed for LinkedIn: https://stackoverflow.com/a/39021392
@@ -119,9 +126,8 @@ EOT;
 		}
 		curl_multi_close($multi);
 
-		if(!$results) return;
-
 		// Update verify_links table
+		if(!$results) return;
 		foreach($results as $url => $data) {
 			$sql = "UPDATE verify_links SET response=:response, redirect=:redirect, checked=NOW() WHERE url=:url";
 			$stmt = $database->prepare($sql);
@@ -537,6 +543,14 @@ EOT;
 		$f->description = $this->_('One of these will be selected at random when links are checked, which lowers the chance that the request will be blocked.');
 		$f->collapsed = Inputfield::collapsedYes;
 		$f->value = $this->$f_name;
+		$inputfields->add($f);
+
+		/** @var InputfieldMarkup $f */
+		$f = $modules->get('InputfieldMarkup');
+		$f->label = $this->_('Related module');
+		$link = $this->wire()->config->urls->admin . 'module/edit?name=ProcessVerifyLinks&collapse_info=1';
+		$link_label = $this->_('Configure Verify Links: Process module');
+		$f->value = "<a href='$link'>$link_label</a>";
 		$inputfields->add($f);
 	}
 

@@ -1,9 +1,38 @@
 #vl-results-table {
   font-size: 14px;
   line-height: 18px; }
-  #vl-results-table .top-controls-wrap .dt-button {
-    font-size: 14px;
-    line-height: 18px; }
+  #vl-results-table .top-controls-wrap {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #cecece;
+    margin-bottom: 10px; }
+    #vl-results-table .top-controls-wrap .dt-button {
+      font-size: 14px;
+      line-height: 18px; }
+    #vl-results-table .top-controls-wrap .dtsb-searchBuilder {
+      margin-bottom: 0; }
+      #vl-results-table .top-controls-wrap .dtsb-searchBuilder div.dtsb-group {
+        margin-bottom: 0; }
+      #vl-results-table .top-controls-wrap .dtsb-searchBuilder div.dtsb-titleRow div.dtsb-title {
+        padding-top: 0; }
+      #vl-results-table .top-controls-wrap .dtsb-searchBuilder div.dtsb-group div.dtsb-criteria div.dtsb-inputCont input.dtsb-value {
+        width: auto; }
+    #vl-results-table .top-controls-wrap .dtsb-criteria input, #vl-results-table .top-controls-wrap .dtsb-criteria select {
+      height: 33px; }
+    #vl-results-table .top-controls-wrap .dt-buttons {
+      float: none; }
+    #vl-results-table .top-controls-wrap button.dt-button, #vl-results-table .top-controls-wrap div.dtsb-searchBuilder button.dtsb-button {
+      font-size: 1em;
+      line-height: 1.25em; }
+    #vl-results-table .top-controls-wrap button.buttons-colvis {
+      margin-bottom: 0; }
+    #vl-results-table .top-controls-wrap .dt-button-collection .dt-button {
+      padding-top: 0.2em;
+      padding-bottom: 0.2em; }
+    #vl-results-table .top-controls-wrap .dt-button-collection button.dt-button:active:not(.disabled), #vl-results-table .top-controls-wrap .dt-button-collection button.dt-button.active:not(.disabled), #vl-results-table .top-controls-wrap .dt-button-collection div.dt-button:active:not(.disabled), #vl-results-table .top-controls-wrap .dt-button-collection div.dt-button.active:not(.disabled), #vl-results-table .top-controls-wrap .dt-button-collection a.dt-button:active:not(.disabled), #vl-results-table .top-controls-wrap .dt-button-collection a.dt-button.active:not(.disabled) {
+      background: linear-gradient(to bottom, #dadada 0%, #c6c6c6 100%); }
   #vl-results-table .table-wrap {
     overflow-x: auto;
     width: 100%; }
@@ -17,6 +46,11 @@
     #vl-results-table .bottom-controls-wrap .dataTables_info {
       padding-top: 0;
       flex-grow: 1; }
+    #vl-results-table .bottom-controls-wrap .dataTables_paginate {
+      padding-top: 0; }
+      #vl-results-table .bottom-controls-wrap .dataTables_paginate .paginate_button {
+        padding: 0.3em 0.8em;
+        line-height: 1.25em; }
 
 #vl-datatable {
   display: none; }

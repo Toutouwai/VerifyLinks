@@ -1,11 +1,30 @@
 #vl-results-table { font-size:14px; line-height:18px;
-	.top-controls-wrap {
+	.top-controls-wrap { display:flex; align-items:flex-end; justify-content:space-between; padding-bottom:10px; border-bottom:1px solid #cecece; margin-bottom:10px;
 		.dt-button { font-size:14px; line-height:18px; }
+		.dtsb-searchBuilder { margin-bottom:0;
+			div.dtsb-group { margin-bottom:0; }
+			div.dtsb-titleRow div.dtsb-title { padding-top:0; }
+			// Fix
+			div.dtsb-group div.dtsb-criteria div.dtsb-inputCont input.dtsb-value { width:auto; }
+		}
+		.dtsb-criteria {
+			input, select { height:33px; }
+		}
+		.dt-buttons { float:none; }
+		button.dt-button, div.dtsb-searchBuilder button.dtsb-button { font-size:1em; line-height:1.25em; }
+		button.buttons-colvis { margin-bottom:0; }
+		.dt-button-collection {
+			.dt-button { padding-top:0.2em; padding-bottom:0.2em; }
+			button.dt-button:active:not(.disabled), button.dt-button.active:not(.disabled), div.dt-button:active:not(.disabled), div.dt-button.active:not(.disabled), a.dt-button:active:not(.disabled), a.dt-button.active:not(.disabled) { background:linear-gradient(to bottom, #dadada 0%, #c6c6c6 100%); }
+		}
 	}
 	.table-wrap { overflow-x:auto; width:100%; }
 	.bottom-controls-wrap { padding-top:10px; display:flex; align-items:baseline; justify-content:space-between;
 		.dataTables_length { padding-right:20px; }
 		.dataTables_info { padding-top:0; flex-grow:1; }
+		.dataTables_paginate { padding-top:0;
+			.paginate_button { padding:0.3em 0.8em; line-height:1.25em; }
+		}
 	}
 }
 #vl-datatable { display:none;

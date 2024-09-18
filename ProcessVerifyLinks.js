@@ -5,7 +5,8 @@ $(document).ready(function() {
 
 	// Initialise DataTable
 	$('#vl-datatable').DataTable({
-		dom: '<"top-controls-wrap"Bf>r<"table-wrap"t><"bottom-controls-wrap"lip>',
+		dom: '<"top-controls-wrap"QB>lfr<"table-wrap"t><"bottom-controls-wrap"ip>',
+		//dt_settings.dom = '<"top-controls-wrap"QB>lfr<"table-wrap"t>ip';
 		columnDefs: [
 			{
 				targets: [5], // Hide Redirect column by default
