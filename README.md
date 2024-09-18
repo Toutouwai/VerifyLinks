@@ -56,11 +56,11 @@ For each link the "Page" column contains a link to edit the page and the "View" 
 
 You can use the "Column visibility" dropdown to include a "Redirect" column in the table, which shows the redirect URL where this is available.
 
+![verify-links-2](https://github.com/Toutouwai/VerifyLinks/assets/1538852/dc45a270-0e71-4c38-8c02-dff9d43dd56c)
+
 You can use the "Custom Search Builder" to filter the table by particular column values, e.g. for a particular response code.
 
 To see only links that have an error response code (400 or higher, or 0), use the flyout menu to visit Setup > Verify Links > Error responses only.
-
-![verify-links-2](https://github.com/Toutouwai/VerifyLinks/assets/1538852/dc45a270-0e71-4c38-8c02-dff9d43dd56c)
 
 ### For those who can't wait
 
