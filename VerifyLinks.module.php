@@ -147,6 +147,7 @@ EOT;
 		/** @var Page $page */
 		$page = $event->arguments(0);
 		$database = $this->wire()->database;
+		if(!$page->id) return;
 
 		// Return if Repeater page because these are handled by the root container page
 		if($page instanceof RepeaterPage) return;

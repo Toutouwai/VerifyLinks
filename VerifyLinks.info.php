@@ -3,7 +3,7 @@
 $info = array(
 	'title' => 'Verify Links',
 	'summary' => 'Periodically verifies that external links are working and not leading to an error page.',
-	'version' => '0.3.2',
+	'version' => '0.3.3',
 	'author' => 'Robin Sallis',
 	'href' => 'https://github.com/Toutouwai/VerifyLinks',
 	'icon' => 'link',
