@@ -293,6 +293,11 @@ EOT;
 					}
 					break;
 
+				// FieldsetPage fields
+				case ($field->type instanceof FieldtypeFieldsetPage):
+					$links = $this->extractLinksFromPage($page->$fieldname, $links);
+					break;
+
 				// Repeater fields
 				case ($field->type instanceof FieldtypeRepeater):
 					foreach($page->$fieldname as $p) {
